@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import Threads from "./components/Threads";
+import SplitText from "./components/SplitText";
 
 const PROFILE = {
   name: "Arosh Nimantha Wijesinghe",
@@ -435,174 +437,6 @@ function useInView(threshold = 0.12) {
   return [ref, vis];
 }
 
-/* MOUSE GLOW EFFECT */
-function MouseGlow({ accent, dark }) {
-  const canvasRef = useRef(null);
-  const pos = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-  const targetPos = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-  const frameRef = useRef(null);
-  const nodesRef = useRef([]);
-  const timeRef = useRef(0);
-  const pulseRef = useRef(0);
-
-  const colors = dark ? [
-    "#00d4ff", "#a855f7", "#ff00ff", "#00ff88", "#ff6b6b",
-    "#4ecdc4", "#45b7d1", "#f9ca24", "#6c5ce7", "#fd79a8"
-  ] : [
-    "#004d99", "#5a2d82", "#8b0000", "#004d00", "#cc5500",
-    "#0d6b6b", "#003d99", "#994d00", "#4a235a", "#993366"
-  ];
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-
-    const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-
-    const cols = 20, rows = 11;
-    const nodes = [];
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const px = (x / (cols - 1)) * canvas.width;
-        const py = (y / (rows - 1)) * canvas.height;
-        nodes.push({
-          x: px, y: py,
-          ox: px, oy: py,
-          pulse: Math.random() * Math.PI * 2,
-          wobble: Math.random() * 0.5 + 0.5,
-          colorIndex: Math.floor(Math.random() * colors.length),
-        });
-      }
-    }
-    nodesRef.current = nodes;
-
-    const onMove = (e) => {
-      targetPos.current = { x: e.clientX, y: e.clientY };
-    };
-    window.addEventListener("mousemove", onMove, { passive: true });
-
-    const getDistance = (x1, y1, x2, y2) => Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-
-    const getOpacityNearContent = (y) => {
-      const headerY = 200;
-      const contentAreaThreshold = 150;
-      if (y < headerY + contentAreaThreshold) return 0.08;
-      if (y > canvas.height - contentAreaThreshold) return 0.1;
-      return 0.15;
-    };
-
-    const hexToRgb = (hex) => {
-      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-      return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [255, 255, 255];
-    };
-
-    const animate = () => {
-      timeRef.current += 0.016;
-      pulseRef.current += 0.02;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      pos.current.x += (targetPos.current.x - pos.current.x) * 0.08;
-      pos.current.y += (targetPos.current.y - pos.current.y) * 0.08;
-
-      nodes.forEach((node) => {
-        const dx = pos.current.x - node.ox;
-        const dy = pos.current.y - node.oy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const influence = Math.max(0, 1 - dist / 500) ** 2;
-
-        const wobbleX = Math.sin(timeRef.current * 0.3 + node.pulse) * node.wobble * 8;
-        const wobbleY = Math.cos(timeRef.current * 0.25 + node.pulse) * node.wobble * 8;
-
-        node.x = node.ox + dx * influence * 0.6 + wobbleX;
-        node.y = node.oy + dy * influence * 0.6 + wobbleY;
-      });
-
-      const pulseIntensity = 0.5 + Math.sin(pulseRef.current) * 0.3;
-
-      for (let y = 0; y < rows - 1; y++) {
-        for (let x = 0; x < cols - 1; x++) {
-          const i = y * cols + x;
-          const n1 = nodes[i];
-          const n2 = nodes[i + 1];
-          const n3 = nodes[i + cols];
-          const n4 = nodes[i + cols + 1];
-
-          const centerY = (n1.y + n2.y + n3.y + n4.y) / 4;
-          const distToMouse = getDistance(pos.current.x, pos.current.y, (n1.x + n2.x + n3.x + n4.x) / 4, centerY);
-          const glow = Math.max(0, 1 - distToMouse / 500) * 0.3;
-
-          const baseOpacity = getOpacityNearContent(centerY);
-          const finalOpacity = Math.max(0.02, baseOpacity * (0.6 + glow + pulseIntensity * 0.2));
-
-          ctx.lineWidth = 0.8;
-          ctx.lineCap = "round";
-          ctx.lineJoin = "round";
-
-          const drawTriangle = (a, b, c, colorIdx) => {
-            const rgb = hexToRgb(colors[colorIdx]);
-            ctx.strokeStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${finalOpacity})`;
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(b.x, b.y);
-            ctx.lineTo(c.x, c.y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(c.x, c.y);
-            ctx.lineTo(a.x, a.y);
-            ctx.stroke();
-          };
-
-          drawTriangle(n1, n2, n4, n1.colorIndex);
-          drawTriangle(n1, n4, n3, n3.colorIndex);
-        }
-      }
-
-      for (let i = 0; i < nodes.length; i += Math.max(1, Math.floor(nodes.length / 800))) {
-        const node = nodes[i];
-        const distToMouse = getDistance(pos.current.x, pos.current.y, node.x, node.y);
-        const nodeGlow = Math.max(0, 1 - distToMouse / 400) * 0.6;
-        const nodeOpacity = Math.min(0.6, (0.25 + nodeGlow) * pulseIntensity);
-
-        const rgb = hexToRgb(colors[node.colorIndex]);
-        ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${nodeOpacity})`;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, 1 + nodeGlow * 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      frameRef.current = requestAnimationFrame(animate);
-    };
-    frameRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("resize", handleResize);
-      cancelAnimationFrame(frameRef.current);
-    };
-  }, [dark]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        pointerEvents: "none",
-        zIndex: 1,
-      }}
-    />
-  );
-}
 
 /* LOADING */
 function LoadingScreen({ accent, accent2 }) {
@@ -626,50 +460,11 @@ function LoadingScreen({ accent, accent2 }) {
   );
 }
 
-/* ANIMATED BG */
-function AnimBg({ dark }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const cv = ref.current; if (!cv) return;
-    const ctx = cv.getContext("2d"); let id;
-    const pts = [];
-    const mouse = { x: -999, y: -999 };
-    const resize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
-    resize(); window.addEventListener("resize", resize);
-    const onMouse = (e) => { mouse.x = e.clientX; mouse.y = e.clientY; };
-    window.addEventListener("mousemove", onMouse, { passive: true });
-    for (let i = 0; i < 70; i++) pts.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, vx: (Math.random() - .5) * .35, vy: (Math.random() - .5) * .35, r: Math.random() * 2 + .8, o: Math.random() * .4 + .1 });
-    const col = dark ? "0,212,255" : "0,120,200";
-    const mul = dark ? 1 : .55;
-    const loop = () => {
-      ctx.clearRect(0, 0, cv.width, cv.height);
-      pts.forEach(p => {
-        const dx = mouse.x - p.x, dy = mouse.y - p.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 120) { p.vx -= dx / dist * 0.015; p.vy -= dy / dist * 0.015; }
-        p.vx *= 0.999; p.vy *= 0.999;
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > cv.width) p.vx *= -1;
-        if (p.y < 0 || p.y > cv.height) p.vy *= -1;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${col},${p.o * mul})`; ctx.fill();
-      });
-      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y, d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 140) { ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.strokeStyle = `rgba(${col},${.07 * (1 - d / 140) * mul})`; ctx.lineWidth = .5; ctx.stroke(); }
-      }
-      id = requestAnimationFrame(loop);
-    };
-    loop();
-    return () => { window.removeEventListener("resize", resize); window.removeEventListener("mousemove", onMouse); cancelAnimationFrame(id); };
-  }, [dark]);
-  return <canvas ref={ref} style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }} />;
-}
 
 function Sec({ id, children, className }) {
   const [ref, vis] = useInView(.08);
   return (
-    <section id={id} ref={ref} className={className} style={{ opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(40px)", transition: "opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1)" }}>
+    <section id={id} ref={ref} className={className} style={{ opacity: vis ? 1 : 0, transition: "opacity .8s cubic-bezier(.16,1,.3,1)", willChange: "opacity" }}>
       {children}
     </section>
   );
@@ -716,13 +511,18 @@ export default function Portfolio() {
   };
 
   useEffect(() => {
+    let rafId = null;
     const h = () => {
-      setScrollY(window.scrollY);
-      const ss = ["home", "about", "skills", "projects", "timeline", "contact"];
-      for (let i = ss.length - 1; i >= 0; i--) { const el = document.getElementById(ss[i]); if (el && el.getBoundingClientRect().top <= 200) { setActive(ss[i]); break; } }
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        setScrollY(window.scrollY);
+        const ss = ["home", "about", "skills", "projects", "timeline", "contact"];
+        for (let i = ss.length - 1; i >= 0; i--) { const el = document.getElementById(ss[i]); if (el && el.getBoundingClientRect().top <= 200) { setActive(ss[i]); break; } }
+      });
     };
     window.addEventListener("scroll", h, { passive: true });
-    return () => window.removeEventListener("scroll", h);
+    return () => { window.removeEventListener("scroll", h); if (rafId) cancelAnimationFrame(rafId); };
   }, []);
 
   const goTo = useCallback((id) => { document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); setMenu(false); }, []);
@@ -783,12 +583,16 @@ export default function Portfolio() {
       `}</style>
       <style>{`:root{--icon-nextjs-inner:${t.nextInner}}`}</style>
 
-      <MouseGlow accent={t.accent} dark={isDark} />
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
+        <Threads
+          color={isDark ? [0, 0.83, 1] : [0, 0.47, 0.78]}
+          amplitude={1.6}
+          distance={0.3}
+          enableMouseInteraction={true}
+        />
+      </div>
 
       <div style={{ position: "relative", minHeight: "100vh" }}>
-        <AnimBg dark={isDark} />
-        <div className="orb" style={{ width: 500, height: 500, background: t.accent, top: "10%", left: "-10%", opacity: t.orbOp, animation: "float 8s ease-in-out infinite" }} />
-        <div className="orb" style={{ width: 400, height: 400, background: t.accent2, top: "60%", right: "-5%", opacity: t.orbOp, animation: "float 10s ease-in-out infinite 2s" }} />
 
         <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, padding: "14px 0", transition: "all .3s", background: scrollY > 50 ? t.navBg : "transparent", backdropFilter: scrollY > 50 ? "blur(20px)" : "none", borderBottom: scrollY > 50 ? `1px solid ${t.gBorder}` : "1px solid transparent" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -811,14 +615,15 @@ export default function Portfolio() {
         </nav>
 
         <section id="home" style={{ minHeight: "100vh", display: "flex", alignItems: "center", position: "relative", zIndex: 1, padding: "120px 24px 80px" }}>
-          <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%", position: "relative", zIndex: 1 }}>
             <div className="hero-grid" style={{ display: "flex", alignItems: "center", gap: 60 }}>
               <div style={{ flex: 1 }}>
                 <div className="s1" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: `${t.accent}12`, border: `1px solid ${t.accent}33`, borderRadius: 50, padding: "6px 16px", marginBottom: 24, fontSize: ".85rem", color: t.accent, fontFamily: "'JetBrains Mono',monospace" }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: t.accent, animation: "blink 2s infinite" }} /> Available for opportunities
                 </div>
-                <h1 className="htitle s2" style={{ fontSize: "3.2rem", fontWeight: 800, lineHeight: 1.1, marginBottom: 8, letterSpacing: "-.02em" }}>
-                  Hi, I'm <span className="gradient-text">Arosh</span>
+                <h1 className="htitle s2" style={{ fontSize: "3.2rem", fontWeight: 800, lineHeight: 1.1, marginBottom: 8, letterSpacing: "-.02em", display: "flex", alignItems: "baseline", gap: "0.35ch", flexWrap: "wrap" }}>
+                  <SplitText text="Hi, I'm" tag="span" splitType="chars" delay={55} duration={0.65} ease="power3.out" from={{ opacity: 0, y: 40 }} to={{ opacity: 1, y: 0 }} threshold={0} rootMargin="0px" textAlign="left" />
+                  <SplitText text="Arosh" tag="span" splitType="chars" delay={55} duration={0.65} ease="power3.out" from={{ opacity: 0, y: 40 }} to={{ opacity: 1, y: 0 }} threshold={0} rootMargin="0px" textAlign="left" className="gradient-text" />
                 </h1>
                 <div className="s3 cursor-blink" style={{ fontSize: "1.5rem", fontWeight: 300, color: t.muted, marginBottom: 24, fontFamily: "'JetBrains Mono',monospace", minHeight: "2.2rem" }}>{typed}</div>
                 <p className="s4" style={{ fontSize: "1.05rem", lineHeight: 1.7, color: t.faint, marginBottom: 32, maxWidth: 520 }}>{PROFILE.tagline}. Currently pursuing {PROFILE.degree} at {PROFILE.university}.</p>
@@ -851,9 +656,13 @@ export default function Portfolio() {
           </div>
         </section>
 
+
         <Sec id="about">
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px" }}>
-            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12 }}>About <span className="gradient-text">Me</span></h2>
+            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
+              <SplitText text="About" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
+              <SplitText text="Me" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+            </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div className="agrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }}>
               <div>
@@ -884,7 +693,10 @@ export default function Portfolio() {
 
         <Sec id="skills">
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px" }}>
-            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12 }}>Tech <span className="gradient-text">Stack</span></h2>
+            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
+              <SplitText text="Tech" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
+              <SplitText text="Stack" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+            </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div className="sgrid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 24 }}>
               {SKILLS.map((g, i) => {
@@ -914,7 +726,10 @@ export default function Portfolio() {
 
         <Sec id="projects">
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px" }}>
-            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12 }}>Featured <span className="gradient-text">Projects</span></h2>
+            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
+              <SplitText text="Featured" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
+              <SplitText text="Projects" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+            </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div className="pgrid" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 24 }}>
               {PROJECTS.map((p, i) => (
@@ -971,7 +786,10 @@ export default function Portfolio() {
 
         <Sec id="timeline">
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px" }}>
-            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12 }}>My <span className="gradient-text">Journey</span></h2>
+            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
+              <SplitText text="My" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
+              <SplitText text="Journey" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+            </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div style={{ maxWidth: 700, margin: "0 auto", position: "relative" }}>
               <div style={{ position: "absolute", left: 20, top: 0, bottom: 0, width: 2, background: `linear-gradient(180deg,${t.accent},${t.accent}20)` }} />
@@ -1000,7 +818,10 @@ export default function Portfolio() {
 
         <Sec id="contact">
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px 60px" }}>
-            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12 }}>Get In <span className="gradient-text">Touch</span></h2>
+            <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
+              <SplitText text="Get In" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
+              <SplitText text="Touch" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+            </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div className="cgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48 }}>
               <div>
