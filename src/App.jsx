@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import Threads from "./components/Threads";
 import SplitText from "./components/SplitText";
+import Particles from "./components/Particles";
+import LightPillar from "./components/LightPillar";
 
 const PROFILE = {
   name: "Arosh Nimantha Wijesinghe",
@@ -24,6 +25,7 @@ const SKILLS = [
       { name: "Python", icon: "python" },
       { name: "Java", icon: "java" },
       { name: "JavaScript", icon: "javascript" },
+      { name: "Dart", icon: "dart" },
       { name: "PHP", icon: "php" },
       { name: "C", icon: "c" },
       { name: "SQL", icon: "sql" },
@@ -36,7 +38,6 @@ const SKILLS = [
       { name: "Scikit-learn", icon: "scikitlearn" },
       { name: "Pandas", icon: "pandas" },
       { name: "NumPy", icon: "numpy" },
-      { name: "OpenCV", icon: "opencv" },
       { name: "Matplotlib", icon: "matplotlib" },
       { name: "Seaborn", icon: "seaborn" },
       { name: "Jupyter", icon: "jupyter" },
@@ -51,6 +52,13 @@ const SKILLS = [
       { name: "Firebase", icon: "firebase" },
       { name: "HTML/CSS", icon: "html" },
       { name: "Node.js", icon: "nodejs" },
+    ],
+  },
+  {
+    category: "Mobile Development",
+    items: [
+      { name: "Flutter", icon: "flutter" },
+      { name: "Dart", icon: "dart" },
     ],
   },
   {
@@ -116,6 +124,22 @@ const PROJECTS = [
     color: "#f59e0b",
     link: null,
     demoLink: null,
+  },
+  {
+    title: "Advance Loop Solutions",
+    desc: "Co-founded a technology company focused on delivering innovative software solutions and AI-driven products. Leading strategic direction, product development, and building a team to create real-world digital impact.",
+    tech: ["Startup", "AI", "Software", "Co-Founder"],
+    color: "#6366f1",
+    link: null,
+    demoLink: "https://www.linkedin.com/company/advance-loop-solution/?viewAsMember=true",
+  },
+  {
+    title: "Smart Chair — Posture Analysis System",
+    desc: "Hardware + AI university project (CM-1900 Intelligent Machine) built as an AI student at University of Moratuwa. A smart chair that uses sensors and machine learning to analyse the user's sitting posture in real time and provide actionable feedback.",
+    tech: ["Hardware", "AI", "Sensors", "ML", "IoT"],
+    color: "#f97316",
+    link: null,
+    demoLink: "https://www.linkedin.com/feed/update/urn:li:activity:7387849804007206912/",
   },
 ];
 
@@ -343,6 +367,42 @@ const LangIcons = {
       <path fill="#1ABCFE" d="M110 64.5c0 11.9-9.6 21.5-21.5 21.5S67 76.4 67 64.5 76.6 43 88.5 43 110 52.6 110 64.5z"/>
     </svg>
   ),
+  flutter: (
+    <svg viewBox="0 0 128 128" width="20" height="20">
+      <defs>
+        <linearGradient id="flutterGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#54C5F8"/>
+          <stop offset="100%" stopColor="#01579B"/>
+        </linearGradient>
+        <linearGradient id="flutterGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#29B6F6"/>
+          <stop offset="100%" stopColor="#0288D1"/>
+        </linearGradient>
+      </defs>
+      <polygon fill="url(#flutterGrad1)" points="14,64 48,28 116,28 82,64"/>
+      <polygon fill="#01579B" points="48,100 65,83 82,100 65,117"/>
+      <polygon fill="url(#flutterGrad2)" points="14,64 48,100 82,64 48,28"/>
+      <polygon fill="#29B6F6" points="82,64 116,28 116,100 82,100 65,83 82,64"/>
+    </svg>
+  ),
+  dart: (
+    <svg viewBox="0 0 128 128" width="20" height="20">
+      <defs>
+        <linearGradient id="dartGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#40C4FF"/>
+          <stop offset="100%" stopColor="#0175C2"/>
+        </linearGradient>
+        <linearGradient id="dartGrad2" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#00B4AB"/>
+          <stop offset="100%" stopColor="#40C4FF"/>
+        </linearGradient>
+      </defs>
+      <path fill="url(#dartGrad1)" d="M34 7l-7 7v40l57 57 40-7 7-40L74 7z"/>
+      <path fill="url(#dartGrad2)" d="M27 54L7 74l7 40 20-20z"/>
+      <path fill="#00B4AB" d="M27 54l20 20-20 20-20-20z"/>
+      <circle fill="#fff" cx="75" cy="53" r="10"/>
+    </svg>
+  ),
   llm: (
     <svg viewBox="0 0 128 128" width="20" height="20">
       <rect width="128" height="128" rx="12" fill="#7C3AED"/>
@@ -437,6 +497,174 @@ function useInView(threshold = 0.12) {
   return [ref, vis];
 }
 
+/* MOUSE GLOW EFFECT */
+function MouseGlow({ accent, dark }) {
+  const canvasRef = useRef(null);
+  const pos = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+  const targetPos = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+  const frameRef = useRef(null);
+  const nodesRef = useRef([]);
+  const timeRef = useRef(0);
+  const pulseRef = useRef(0);
+
+  const colors = dark ? [
+    "#00d4ff", "#a855f7", "#ff00ff", "#00ff88", "#ff6b6b",
+    "#4ecdc4", "#45b7d1", "#f9ca24", "#6c5ce7", "#fd79a8"
+  ] : [
+    "#004d99", "#5a2d82", "#8b0000", "#004d00", "#cc5500",
+    "#0d6b6b", "#003d99", "#994d00", "#4a235a", "#993366"
+  ];
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    const cols = 20, rows = 11;
+    const nodes = [];
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const px = (x / (cols - 1)) * canvas.width;
+        const py = (y / (rows - 1)) * canvas.height;
+        nodes.push({
+          x: px, y: py,
+          ox: px, oy: py,
+          pulse: Math.random() * Math.PI * 2,
+          wobble: Math.random() * 0.5 + 0.5,
+          colorIndex: Math.floor(Math.random() * colors.length),
+        });
+      }
+    }
+    nodesRef.current = nodes;
+
+    const onMove = (e) => {
+      targetPos.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
+
+    const getDistance = (x1, y1, x2, y2) => Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+
+    const getOpacityNearContent = (y) => {
+      const headerY = 200;
+      const contentAreaThreshold = 150;
+      if (y < headerY + contentAreaThreshold) return 0.08;
+      if (y > canvas.height - contentAreaThreshold) return 0.1;
+      return 0.15;
+    };
+
+    const hexToRgb = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [255, 255, 255];
+    };
+
+    const animate = () => {
+      timeRef.current += 0.016;
+      pulseRef.current += 0.02;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      pos.current.x += (targetPos.current.x - pos.current.x) * 0.08;
+      pos.current.y += (targetPos.current.y - pos.current.y) * 0.08;
+
+      nodes.forEach((node) => {
+        const dx = pos.current.x - node.ox;
+        const dy = pos.current.y - node.oy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const influence = Math.max(0, 1 - dist / 500) ** 2;
+
+        const wobbleX = Math.sin(timeRef.current * 0.3 + node.pulse) * node.wobble * 8;
+        const wobbleY = Math.cos(timeRef.current * 0.25 + node.pulse) * node.wobble * 8;
+
+        node.x = node.ox + dx * influence * 0.6 + wobbleX;
+        node.y = node.oy + dy * influence * 0.6 + wobbleY;
+      });
+
+      const pulseIntensity = 0.5 + Math.sin(pulseRef.current) * 0.3;
+
+      for (let y = 0; y < rows - 1; y++) {
+        for (let x = 0; x < cols - 1; x++) {
+          const i = y * cols + x;
+          const n1 = nodes[i];
+          const n2 = nodes[i + 1];
+          const n3 = nodes[i + cols];
+          const n4 = nodes[i + cols + 1];
+
+          const centerY = (n1.y + n2.y + n3.y + n4.y) / 4;
+          const distToMouse = getDistance(pos.current.x, pos.current.y, (n1.x + n2.x + n3.x + n4.x) / 4, centerY);
+          const glow = Math.max(0, 1 - distToMouse / 500) * 0.3;
+
+          const baseOpacity = getOpacityNearContent(centerY);
+          const finalOpacity = Math.max(0.02, baseOpacity * (0.6 + glow + pulseIntensity * 0.2));
+
+          ctx.lineWidth = 0.8;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+
+          const drawTriangle = (a, b, c, colorIdx) => {
+            const rgb = hexToRgb(colors[colorIdx]);
+            ctx.strokeStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${finalOpacity})`;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y);
+            ctx.lineTo(c.x, c.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(c.x, c.y);
+            ctx.lineTo(a.x, a.y);
+            ctx.stroke();
+          };
+
+          drawTriangle(n1, n2, n4, n1.colorIndex);
+          drawTriangle(n1, n4, n3, n3.colorIndex);
+        }
+      }
+
+      for (let i = 0; i < nodes.length; i += Math.max(1, Math.floor(nodes.length / 800))) {
+        const node = nodes[i];
+        const distToMouse = getDistance(pos.current.x, pos.current.y, node.x, node.y);
+        const nodeGlow = Math.max(0, 1 - distToMouse / 400) * 0.6;
+        const nodeOpacity = Math.min(0.6, (0.25 + nodeGlow) * pulseIntensity);
+
+        const rgb = hexToRgb(colors[node.colorIndex]);
+        ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${nodeOpacity})`;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 1 + nodeGlow * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      frameRef.current = requestAnimationFrame(animate);
+    };
+    frameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("resize", handleResize);
+      cancelAnimationFrame(frameRef.current);
+    };
+  }, [dark]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        pointerEvents: "none",
+        zIndex: 1,
+      }}
+    />
+  );
+}
 
 /* LOADING */
 function LoadingScreen({ accent, accent2 }) {
@@ -460,11 +688,209 @@ function LoadingScreen({ accent, accent2 }) {
   );
 }
 
+/* INTERACTIVE BACKGROUND */
+function InteractiveBg({ dark }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return;
+    const ctx = cv.getContext("2d");
+    let id;
+    const mouse = { x: -9999, y: -9999, vx: 0, vy: 0, px: -9999, py: -9999 };
+
+    const resize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const onMouse = (e) => {
+      mouse.vx = e.clientX - mouse.px;
+      mouse.vy = e.clientY - mouse.py;
+      mouse.px = mouse.x; mouse.py = mouse.y;
+      mouse.x = e.clientX; mouse.y = e.clientY;
+    };
+    window.addEventListener("mousemove", onMouse, { passive: true });
+
+    // colour palette — shifts with dark/light
+    const c1 = dark ? [0, 212, 255] : [0, 100, 200];
+    const c2 = dark ? [168, 85, 247] : [80, 0, 180];
+    const c3 = dark ? [0, 255, 136] : [0, 120, 80];
+
+    // ── PARTICLES ──────────────────────────────────────────────
+    const N = 120;
+    const pts = Array.from({ length: N }, () => {
+      const pal = [c1, c2, c3][Math.floor(Math.random() * 3)];
+      return {
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        r: Math.random() * 2 + 0.8,
+        o: Math.random() * 0.5 + 0.15,
+        pal,
+        baseR: Math.random() * 2 + 0.8,
+      };
+    });
+
+    // ── RIPPLES ─────────────────────────────────────────────────
+    const ripples = [];
+    const addRipple = (x, y) => {
+      ripples.push({ x, y, r: 0, maxR: 120 + Math.random() * 80, alpha: 0.35, speed: 2 + Math.random() * 2 });
+    };
+    let lastRipple = 0;
+
+    // ── TRAILS ──────────────────────────────────────────────────
+    const trail = [];
+    const MAX_TRAIL = 28;
+
+    const loop = (now) => {
+      const W = cv.width, H = cv.height;
+      ctx.clearRect(0, 0, W, H);
+
+      // mouse speed
+      const mspeed = Math.sqrt(mouse.vx ** 2 + mouse.vy ** 2);
+
+      // spawn ripple on fast move
+      if (mspeed > 8 && now - lastRipple > 120) {
+        addRipple(mouse.x, mouse.y);
+        lastRipple = now;
+      }
+
+      // update trail
+      if (mouse.x > -999) {
+        trail.push({ x: mouse.x, y: mouse.y, t: now });
+        if (trail.length > MAX_TRAIL) trail.shift();
+      }
+
+      // ── draw ripples ──
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const rp = ripples[i];
+        rp.r += rp.speed;
+        rp.alpha -= 0.008;
+        if (rp.alpha <= 0 || rp.r > rp.maxR) { ripples.splice(i, 1); continue; }
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${c1.join(',')},${rp.alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // ── draw mouse trail ──
+      if (trail.length > 2) {
+        for (let i = 1; i < trail.length; i++) {
+          const p = trail[i - 1], q = trail[i];
+          const frac = i / trail.length;
+          const age = (now - q.t) / 600;
+          const a = Math.max(0, (1 - age) * frac * 0.5);
+          const col = frac < 0.5 ? c1 : c2;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(q.x, q.y);
+          ctx.strokeStyle = `rgba(${col.join(',')},${a})`;
+          ctx.lineWidth = (1 - frac) * 3 + 0.5;
+          ctx.stroke();
+        }
+        // glowing head dot
+        if (trail.length > 0) {
+          const head = trail[trail.length - 1];
+          const g = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, 18);
+          g.addColorStop(0, `rgba(${c1.join(',')},0.5)`);
+          g.addColorStop(1, `rgba(${c1.join(',')},0)`);
+          ctx.beginPath();
+          ctx.arc(head.x, head.y, 18, 0, Math.PI * 2);
+          ctx.fillStyle = g;
+          ctx.fill();
+        }
+      }
+
+      // ── update & draw particles ──
+      const ATTRACT_R = 180, REPEL_R = 90;
+      pts.forEach(p => {
+        const dx = mouse.x - p.x, dy = mouse.y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < REPEL_R && dist > 0) {
+          // repel strongly near cursor
+          const force = (1 - dist / REPEL_R) * 0.04;
+          p.vx -= (dx / dist) * force;
+          p.vy -= (dy / dist) * force;
+        } else if (dist < ATTRACT_R && dist > 0) {
+          // gentle attraction in outer ring
+          const force = (1 - dist / ATTRACT_R) * 0.006;
+          p.vx += (dx / dist) * force;
+          p.vy += (dy / dist) * force;
+        }
+
+        // mouse velocity drag — particles get swept along
+        if (dist < ATTRACT_R) {
+          const sweep = Math.max(0, 1 - dist / ATTRACT_R) * 0.012;
+          p.vx += mouse.vx * sweep;
+          p.vy += mouse.vy * sweep;
+        }
+
+        p.vx *= 0.98; p.vy *= 0.98;
+        // clamp speed
+        const spd = Math.sqrt(p.vx ** 2 + p.vy ** 2);
+        if (spd > 3) { p.vx = (p.vx / spd) * 3; p.vy = (p.vy / spd) * 3; }
+
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) { p.x = 0; p.vx *= -1; }
+        if (p.x > W) { p.x = W; p.vx *= -1; }
+        if (p.y < 0) { p.y = 0; p.vy *= -1; }
+        if (p.y > H) { p.y = H; p.vy *= -1; }
+
+        // glow up near mouse
+        const proximity = Math.max(0, 1 - dist / ATTRACT_R);
+        const r = p.baseR + proximity * 2.5;
+        const o = (dark ? 1 : 0.6) * (p.o + proximity * 0.4);
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.pal.join(',')},${Math.min(o, 0.9)})`;
+        ctx.fill();
+      });
+
+      // ── draw connection lines ──
+      const LINK = 130;
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < LINK) {
+            // check if mouse is near the midpoint
+            const mx = (pts[i].x + pts[j].x) / 2, my = (pts[i].y + pts[j].y) / 2;
+            const mdist = Math.sqrt((mouse.x - mx) ** 2 + (mouse.y - my) ** 2);
+            const boost = Math.max(0, 1 - mdist / 300) * 0.25;
+            const base = 0.06 * (1 - d / LINK) * (dark ? 1 : 0.5);
+            ctx.beginPath();
+            ctx.moveTo(pts[i].x, pts[i].y);
+            ctx.lineTo(pts[j].x, pts[j].y);
+            ctx.strokeStyle = `rgba(${c1.join(',')},${base + boost})`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // mouse velocity reset each frame
+      mouse.vx *= 0.85; mouse.vy *= 0.85;
+
+      id = requestAnimationFrame(loop);
+    };
+    id = requestAnimationFrame(loop);
+
+    return () => {
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMouse);
+      cancelAnimationFrame(id);
+    };
+  }, [dark]);
+
+  return <canvas ref={ref} style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }} />;
+}
 
 function Sec({ id, children, className }) {
   const [ref, vis] = useInView(.08);
   return (
-    <section id={id} ref={ref} className={className} style={{ opacity: vis ? 1 : 0, transition: "opacity .8s cubic-bezier(.16,1,.3,1)", willChange: "opacity" }}>
+    <section id={id} ref={ref} className={className} style={{ opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(40px)", transition: "opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1)" }}>
       {children}
     </section>
   );
@@ -474,8 +900,8 @@ const CONTACT_EMAIL = "aroshnimantha386@gmail.com";
 
 export default function Portfolio() {
   const [menuOpen, setMenu] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
   const [active, setActive] = useState("home");
+  const navRef = useRef(null);
   const [isDark, setIsDark] = useState(true);
   const [loading, setLoading] = useState(true);
 
@@ -510,20 +936,27 @@ export default function Portfolio() {
     nextInner: "#f8f9fc",
   };
 
+  const { navBg, gBorder } = t;
+
   useEffect(() => {
     let rafId = null;
     const h = () => {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
         rafId = null;
-        setScrollY(window.scrollY);
+        const scrolled = window.scrollY > 50;
+        if (navRef.current) {
+          navRef.current.style.background = scrolled ? navBg : "transparent";
+          navRef.current.style.backdropFilter = scrolled ? "blur(20px)" : "none";
+          navRef.current.style.borderBottom = scrolled ? `1px solid ${gBorder}` : "1px solid transparent";
+        }
         const ss = ["home", "about", "skills", "projects", "timeline", "contact"];
         for (let i = ss.length - 1; i >= 0; i--) { const el = document.getElementById(ss[i]); if (el && el.getBoundingClientRect().top <= 200) { setActive(ss[i]); break; } }
       });
     };
     window.addEventListener("scroll", h, { passive: true });
     return () => { window.removeEventListener("scroll", h); if (rafId) cancelAnimationFrame(rafId); };
-  }, []);
+  }, [navBg, gBorder]);
 
   const goTo = useCallback((id) => { document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); setMenu(false); }, []);
 
@@ -566,7 +999,7 @@ export default function Portfolio() {
         @keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
         .cursor-blink::after{content:'|';animation:blink 1s step-end infinite;color:${t.accent};font-weight:300}
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-        .glow-border{position:relative}.glow-border::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(135deg,${t.accent}50,${t.accent2}50,${t.accent}20);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .4s}.glow-border:hover::before{opacity:1}
+        .glow-border{position:relative}.glow-border::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(135deg,${t.accent}50,${t.accent2}50,${t.accent}20);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .4s;pointer-events:none}.glow-border:hover::before{opacity:1}
         .btn-p{background:linear-gradient(135deg,${t.accent},${isDark?"#0099cc":"#005fa3"});color:${isDark?"#000":"#fff"};font-family:'Outfit',sans-serif;font-weight:600;padding:12px 28px;border:none;border-radius:50px;cursor:pointer;font-size:.95rem;transition:all .3s;display:inline-flex;align-items:center;gap:8px;text-decoration:none}.btn-p:hover{transform:translateY(-2px);box-shadow:0 8px 30px ${t.accent}40}
         .btn-o{background:transparent;color:${t.accent};font-family:'Outfit',sans-serif;font-weight:500;padding:12px 28px;border:1px solid ${t.accent}66;border-radius:50px;cursor:pointer;font-size:.95rem;transition:all .3s;display:inline-flex;align-items:center;gap:8px;text-decoration:none}.btn-o:hover{background:${t.accent}18;border-color:${t.accent};transform:translateY(-2px)}
         .pcard{transition:transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s}.pcard:hover{transform:translateY(-8px);box-shadow:0 20px 60px ${t.shadow}}
@@ -583,16 +1016,12 @@ export default function Portfolio() {
       `}</style>
       <style>{`:root{--icon-nextjs-inner:${t.nextInner}}`}</style>
 
-      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
-        <Threads
-          color={isDark ? [0, 0.83, 1] : [0, 0.47, 0.78]}
-          amplitude={1.6}
-          distance={0.3}
-          enableMouseInteraction={true}
-        />
-      </div>
+      <MouseGlow accent={t.accent} dark={isDark} />
 
       <div style={{ position: "relative", minHeight: "100vh" }}>
+        <InteractiveBg dark={isDark} />
+        <div className="orb" style={{ width: 500, height: 500, background: t.accent, top: "10%", left: "-10%", opacity: t.orbOp, animation: "float 8s ease-in-out infinite" }} />
+        <div className="orb" style={{ width: 400, height: 400, background: t.accent2, top: "60%", right: "-5%", opacity: t.orbOp, animation: "float 10s ease-in-out infinite 2s" }} />
 
         <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, padding: "14px 0", transition: "all .3s", background: scrollY > 50 ? t.navBg : "transparent", backdropFilter: scrollY > 50 ? "blur(20px)" : "none", borderBottom: scrollY > 50 ? `1px solid ${t.gBorder}` : "1px solid transparent" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -615,7 +1044,7 @@ export default function Portfolio() {
         </nav>
 
         <section id="home" style={{ minHeight: "100vh", display: "flex", alignItems: "center", position: "relative", zIndex: 1, padding: "120px 24px 80px" }}>
-          <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%", position: "relative", zIndex: 1 }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%" }}>
             <div className="hero-grid" style={{ display: "flex", alignItems: "center", gap: 60 }}>
               <div style={{ flex: 1 }}>
                 <div className="s1" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: `${t.accent}12`, border: `1px solid ${t.accent}33`, borderRadius: 50, padding: "6px 16px", marginBottom: 24, fontSize: ".85rem", color: t.accent, fontFamily: "'JetBrains Mono',monospace" }}>
@@ -623,7 +1052,7 @@ export default function Portfolio() {
                 </div>
                 <h1 className="htitle s2" style={{ fontSize: "3.2rem", fontWeight: 800, lineHeight: 1.1, marginBottom: 8, letterSpacing: "-.02em", display: "flex", alignItems: "baseline", gap: "0.35ch", flexWrap: "wrap" }}>
                   <SplitText text="Hi, I'm" tag="span" splitType="chars" delay={55} duration={0.65} ease="power3.out" from={{ opacity: 0, y: 40 }} to={{ opacity: 1, y: 0 }} threshold={0} rootMargin="0px" textAlign="left" />
-                  <SplitText text="Arosh" tag="span" splitType="chars" delay={55} duration={0.65} ease="power3.out" from={{ opacity: 0, y: 40 }} to={{ opacity: 1, y: 0 }} threshold={0} rootMargin="0px" textAlign="left" className="gradient-text" />
+                  <SplitText text="Arosh" tag="span" splitType="chars" delay={55} duration={0.65} ease="power3.out" from={{ opacity: 0, y: 40 }} to={{ opacity: 1, y: 0 }} threshold={0} rootMargin="0px" textAlign="left" />
                 </h1>
                 <div className="s3 cursor-blink" style={{ fontSize: "1.5rem", fontWeight: 300, color: t.muted, marginBottom: 24, fontFamily: "'JetBrains Mono',monospace", minHeight: "2.2rem" }}>{typed}</div>
                 <p className="s4" style={{ fontSize: "1.05rem", lineHeight: 1.7, color: t.faint, marginBottom: 32, maxWidth: 520 }}>{PROFILE.tagline}. Currently pursuing {PROFILE.degree} at {PROFILE.university}.</p>
@@ -656,12 +1085,11 @@ export default function Portfolio() {
           </div>
         </section>
 
-
         <Sec id="about">
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px" }}>
             <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
               <SplitText text="About" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
-              <SplitText text="Me" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+              <SplitText text="Me" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
             </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div className="agrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }}>
@@ -695,7 +1123,7 @@ export default function Portfolio() {
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px" }}>
             <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
               <SplitText text="Tech" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
-              <SplitText text="Stack" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+              <SplitText text="Stack" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
             </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div className="sgrid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 24 }}>
@@ -728,7 +1156,7 @@ export default function Portfolio() {
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px" }}>
             <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
               <SplitText text="Featured" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
-              <SplitText text="Projects" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+              <SplitText text="Projects" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
             </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div className="pgrid" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 24 }}>
@@ -764,7 +1192,7 @@ export default function Portfolio() {
                             onMouseEnter={e => { e.currentTarget.style.background = `${t.accent}25`; e.currentTarget.style.borderColor = `${t.accent}88`; e.currentTarget.style.transform = "translateY(-2px)"; }}
                             onMouseLeave={e => { e.currentTarget.style.background = `${t.accent}10`; e.currentTarget.style.borderColor = `${t.accent}44`; e.currentTarget.style.transform = ""; }}
                           >
-                            {I.ext} Live Demo
+                            {I.ext} {p.demoLink.includes("linkedin.com") ? "LinkedIn" : "Live Demo"}
                           </a>
                         )}
                         {!p.link && !p.demoLink && (
@@ -788,7 +1216,7 @@ export default function Portfolio() {
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px" }}>
             <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
               <SplitText text="My" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
-              <SplitText text="Journey" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+              <SplitText text="Journey" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
             </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div style={{ maxWidth: 700, margin: "0 auto", position: "relative" }}>
@@ -820,7 +1248,7 @@ export default function Portfolio() {
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px 60px" }}>
             <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
               <SplitText text="Get In" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
-              <SplitText text="Touch" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" className="gradient-text" />
+              <SplitText text="Touch" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
             </h2>
             <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${t.accent},transparent)`, borderRadius: 2, marginBottom: 48 }} />
             <div className="cgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48 }}>
