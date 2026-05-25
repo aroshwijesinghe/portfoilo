@@ -20,6 +20,7 @@
   "author": "Arosh Nimantha Wijesinghe",
   "license": "MIT",
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@gsap/react": "^2.1.2",
     "gsap": "^3.15.0",
     "ogl": "^1.0.11",

@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import emailjs from "@emailjs/browser";
 import SplitText from "./components/SplitText";
 import Particles from "./components/Particles";
-import LightPillar from "./components/LightPillar";
+
+
+const EJS_SERVICE_ID  = "service_ap9qyyg";
+const EJS_TEMPLATE_ID = "template_zsazw35";
+const EJS_PUBLIC_KEY  = "m7NQxsMPjSIHdY1Xf";
 
 const PROFILE = {
   name: "Arosh Nimantha Wijesinghe",
@@ -1035,7 +1040,7 @@ export default function Portfolio() {
           navRef.current.style.backdropFilter = scrolled ? "blur(20px)" : "none";
           navRef.current.style.borderBottom = scrolled ? `1px solid ${gBorder}` : "1px solid transparent";
         }
-        const ss = ["home", "about", "skills", "projects", "timeline", "contact"];
+        const ss = ["home", "about", "skills", "projects", "contact"];
         for (let i = ss.length - 1; i >= 0; i--) { const el = document.getElementById(ss[i]); if (el && el.getBoundingClientRect().top <= 200) { setActive(ss[i]); break; } }
       });
     };
@@ -1045,7 +1050,7 @@ export default function Portfolio() {
 
   const goTo = useCallback((id) => { document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); setMenu(false); }, []);
 
-  const navs = [{ id: "home", l: "Home" }, { id: "about", l: "About" }, { id: "skills", l: "Skills" }, { id: "projects", l: "Projects" }, { id: "timeline", l: "Timeline" }, { id: "contact", l: "Contact" }];
+  const navs = [{ id: "home", l: "Home" }, { id: "about", l: "About" }, { id: "skills", l: "Skills" }, { id: "projects", l: "Projects" }, { id: "contact", l: "Contact" }];
 
   const handleSend = () => {
     if (!form.name || !form.email || !form.message) {
@@ -1053,18 +1058,25 @@ export default function Portfolio() {
       return;
     }
     setSending(true);
-    const subject = encodeURIComponent(form.subject || `Portfolio Contact from ${form.name}`);
-    const body = encodeURIComponent(
-      `Name: ${form.name}\nEmail: ${form.email}\n\nMessage:\n${form.message}`
-    );
-    const mailtoUrl = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
-    window.location.href = mailtoUrl;
-    setTimeout(() => {
+    emailjs.send(
+      EJS_SERVICE_ID,
+      EJS_TEMPLATE_ID,
+      {
+        name:    form.name,
+        email:   form.email,
+        title:   form.subject || `Portfolio Contact from ${form.name}`,
+        message: form.message,
+      },
+      EJS_PUBLIC_KEY
+    ).then(() => {
       setSending(false);
       setSent(true);
       setForm({ name: "", email: "", subject: "", message: "" });
-      setTimeout(() => setSent(false), 4000);
-    }, 800);
+      setTimeout(() => setSent(false), 5000);
+    }).catch(() => {
+      setSending(false);
+      alert("Failed to send. Please try again or email me directly at " + CONTACT_EMAIL);
+    });
   };
 
   if (loading) {
@@ -1116,10 +1128,10 @@ export default function Portfolio() {
         return (
           <div onClick={() => { setContactModal(null); setCopied(false); }}
             style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
-              background: "rgba(0,0,0,.55)", backdropFilter: "blur(8px)", animation: "fadeIn .2s ease" }}>
+              background: "rgba(0,0,0,.72)", animation: "fadeIn .2s ease" }}>
             <div onClick={e => e.stopPropagation()}
               style={{ background: t.bgAlt, border: `1.5px solid ${t.accent}55`, borderRadius: 24, padding: "40px 36px",
-                boxShadow: `0 0 60px ${t.accent}25, 0 24px 64px rgba(0,0,0,.45)`,
+                boxShadow: `0 0 60px ${t.accent}30, 0 24px 64px rgba(0,0,0,.7)`,
                 minWidth: 340, maxWidth: 420, width: "90vw", textAlign: "center", position: "relative",
                 animation: "slideUp .25s cubic-bezier(.16,1,.3,1)" }}>
               {/* close */}
@@ -1350,7 +1362,7 @@ export default function Portfolio() {
           </div>
         </Sec>
 
-        <Sec id="timeline">
+        {false && <Sec id="timeline">
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px" }}>
             <h2 className="stitle" style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "baseline", gap: "0.4ch", flexWrap: "wrap" }}>
               <SplitText text="My" tag="span" splitType="chars" delay={60} duration={0.7} ease="power3.out" from={{ opacity: 0, y: 30 }} to={{ opacity: 1, y: 0 }} threshold={0.2} rootMargin="-80px" textAlign="left" />
@@ -1380,7 +1392,7 @@ export default function Portfolio() {
               })}
             </div>
           </div>
-        </Sec>
+        </Sec>}
 
         <Sec id="contact">
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px 60px" }}>
@@ -1410,9 +1422,9 @@ export default function Portfolio() {
                   ))}
                 </div>
               </div>
-              <div style={{ background: t.bgAlt, border: `2px solid ${t.gBorder}`, borderTop: `3px solid ${t.accent}`, backdropFilter: "blur(20px)", borderRadius: 20, padding: 32, transition: "all .3s", cursor: "pointer" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.boxShadow = `0 0 25px ${t.accent}40, inset 0 0 15px ${t.accent}15`; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = t.gBorder; e.currentTarget.style.boxShadow = "none"; }}>
+              <div style={{ background: `linear-gradient(135deg,${t.accent}08,${t.accent2}08)`, border: `2px solid ${t.accent}30`, borderTop: `3px solid ${t.accent}`, backdropFilter: "blur(24px)", borderRadius: 20, padding: 32, transition: "all .3s", cursor: "pointer" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.boxShadow = `0 0 25px ${t.accent}40, inset 0 0 15px ${t.accent}10`; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = `${t.accent}30`; e.currentTarget.style.boxShadow = "none"; }}>
                 {sent ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16, textAlign: "center" }}>
                     <div style={{ fontSize: "3rem" }}>✅</div>
@@ -1427,12 +1439,14 @@ export default function Portfolio() {
                         placeholder="Your Name"
                         value={form.name}
                         onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                        style={{ background: "rgba(0,0,0,.35)", border: `1px solid ${t.accent}30`, color: t.text }}
                       />
                       <input
                         type="email"
                         placeholder="Your Email"
                         value={form.email}
                         onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                        style={{ background: "rgba(0,0,0,.35)", border: `1px solid ${t.accent}30`, color: t.text }}
                       />
                     </div>
                     <input
@@ -1440,12 +1454,14 @@ export default function Portfolio() {
                       placeholder="Subject"
                       value={form.subject}
                       onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
+                      style={{ background: "rgba(0,0,0,.35)", border: `1px solid ${t.accent}30`, color: t.text }}
                     />
                     <textarea
                       placeholder="Your Message..."
                       rows={5}
                       value={form.message}
                       onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
+                      style={{ background: "rgba(0,0,0,.35)", border: `1px solid ${t.accent}30`, color: t.text }}
                     />
                     <button
                       className="btn-p"
