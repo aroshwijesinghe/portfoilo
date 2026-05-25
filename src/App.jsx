@@ -4,9 +4,10 @@ import SplitText from "./components/SplitText";
 import Particles from "./components/Particles";
 
 
-const EJS_SERVICE_ID  = "service_ap9qyyg";
-const EJS_TEMPLATE_ID = "template_zsazw35";
+const EJS_SERVICE_ID  = "service_avnf83h";
+const EJS_TEMPLATE_ID = "template_nwi1uoq";
 const EJS_PUBLIC_KEY  = "m7NQxsMPjSIHdY1Xf";
+emailjs.init({ publicKey: EJS_PUBLIC_KEY });
 
 const PROFILE = {
   name: "Arosh Nimantha Wijesinghe",
@@ -1066,16 +1067,16 @@ export default function Portfolio() {
         email:   form.email,
         title:   form.subject || `Portfolio Contact from ${form.name}`,
         message: form.message,
-      },
-      EJS_PUBLIC_KEY
+      }
     ).then(() => {
       setSending(false);
       setSent(true);
       setForm({ name: "", email: "", subject: "", message: "" });
       setTimeout(() => setSent(false), 5000);
-    }).catch(() => {
+    }).catch((err) => {
       setSending(false);
-      alert("Failed to send. Please try again or email me directly at " + CONTACT_EMAIL);
+      console.error("EmailJS error:", err);
+      alert("Failed to send. Error: " + (err?.text || err?.message || JSON.stringify(err)));
     });
   };
 
