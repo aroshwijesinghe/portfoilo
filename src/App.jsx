@@ -1175,10 +1175,8 @@ export default function Portfolio() {
             </button>
             <div className="nav-d" style={{ display: "flex", gap: 32, alignItems: "center" }}>
               {navs.map(n => <button key={n.id} className={`nl ${active === n.id ? "on" : ""}`} onClick={() => goTo(n.id)}>{n.l}</button>)}
-              <button className="thm" onClick={() => setIsDark(!isDark)} title={isDark ? "Light mode" : "Dark mode"}>{isDark ? I.sun : I.moon}</button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button className="thm mob-btn" onClick={() => setIsDark(!isDark)} style={{ display: "none" }}>{isDark ? I.sun : I.moon}</button>
               <button className="mob-btn" onClick={() => setMenu(!menuOpen)} style={{ background: "none", border: "none", color: t.text, cursor: "pointer", display: "none", alignItems: "center" }}>{menuOpen ? I.close : I.menu}</button>
             </div>
           </div>
