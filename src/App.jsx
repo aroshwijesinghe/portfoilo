@@ -721,7 +721,10 @@ function InteractiveBg({ dark }) {
     const getHueBase = () => (mouse.x / (cv.width || 1)) * 120; // 0=cyan, 60=green, 120=blue
 
     // ── PARTICLES ──────────────────────────────────────────────────────
-    const N = 140;
+    // scale down on weak devices
+    const cores = navigator.hardwareConcurrency || 4;
+    const isLowEnd = cores <= 4;
+    const N = isLowEnd ? 70 : cores <= 8 ? 110 : 140;
     const pts = Array.from({ length: N }, () => ({
       x:  Math.random() * window.innerWidth,
       y:  Math.random() * window.innerHeight,
@@ -921,27 +924,29 @@ function InteractiveBg({ dark }) {
         ctx.fill();
       });
 
-      // ── 6. CONNECTION WEB ─────────────────────────────────────────────
-      const LINK = 140;
-      for (let i = 0; i < pts.length; i++) {
-        for (let j = i + 1; j < pts.length; j++) {
-          const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
-          const d  = Math.sqrt(dx * dx + dy * dy);
-          if (d > LINK) continue;
+      // ── 6. CONNECTION WEB (skipped on low-end devices) ────────────────
+      if (!isLowEnd) {
+        const LINK = 140;
+        for (let i = 0; i < pts.length; i++) {
+          for (let j = i + 1; j < pts.length; j++) {
+            const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+            const d  = Math.sqrt(dx * dx + dy * dy);
+            if (d > LINK) continue;
 
-          const mx = (pts[i].x + pts[j].x) * .5;
-          const my = (pts[i].y + pts[j].y) * .5;
-          const md = Math.sqrt((smooth.x - mx) ** 2 + (smooth.y - my) ** 2);
-          const boost  = Math.max(0, 1 - md / 320) * .35;
-          const base   = (1 - d / LINK) * (dark ? .07 : .04);
-          const lh     = (hb + (pts[i].hOffset + pts[j].hOffset) / 2) % 360;
+            const mx = (pts[i].x + pts[j].x) * .5;
+            const my = (pts[i].y + pts[j].y) * .5;
+            const md = Math.sqrt((smooth.x - mx) ** 2 + (smooth.y - my) ** 2);
+            const boost  = Math.max(0, 1 - md / 320) * .35;
+            const base   = (1 - d / LINK) * (dark ? .07 : .04);
+            const lh     = (hb + (pts[i].hOffset + pts[j].hOffset) / 2) % 360;
 
-          ctx.beginPath();
-          ctx.moveTo(pts[i].x, pts[i].y);
-          ctx.lineTo(pts[j].x, pts[j].y);
-          ctx.strokeStyle = `hsla(${lh},100%,70%,${base + boost})`;
-          ctx.lineWidth   = .55 + boost * 1.2;
-          ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(pts[i].x, pts[i].y);
+            ctx.lineTo(pts[j].x, pts[j].y);
+            ctx.strokeStyle = `hsla(${lh},100%,70%,${base + boost})`;
+            ctx.lineWidth   = .55 + boost * 1.2;
+            ctx.stroke();
+          }
         }
       }
 
@@ -957,7 +962,7 @@ function InteractiveBg({ dark }) {
     };
   }, [dark]);
 
-  return <canvas ref={ref} style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }} />;
+  return <canvas ref={ref} style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none", willChange: "transform" }} />;
 }
 
 function Sec({ id, children, className }) {
@@ -1068,6 +1073,8 @@ export default function Portfolio() {
 
   return (
     <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
       <style>{`
         *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -1077,6 +1084,8 @@ export default function Portfolio() {
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:${t.bg}}::-webkit-scrollbar-thumb{background:${t.accent}50;border-radius:3px}
         .gradient-text{background:linear-gradient(135deg,${t.accent} 0%,${t.accent2} 50%,${t.accent} 100%);background-size:200% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 4s ease infinite}
         @keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
         .cursor-blink::after{content:'|';animation:blink 1s step-end infinite;color:${t.accent};font-weight:300}
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
         .glow-border{position:relative}.glow-border::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(135deg,${t.accent}50,${t.accent2}50,${t.accent}20);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .4s;pointer-events:none}.glow-border:hover::before{opacity:1}
@@ -1097,6 +1106,48 @@ export default function Portfolio() {
       <style>{`:root{--icon-nextjs-inner:${t.nextInner}}`}</style>
 
       <MouseGlow accent={t.accent} dark={isDark} />
+
+      {/* ── CONTACT MODAL ── */}
+      {contactModal && (() => {
+        const isEmail = contactModal === "email";
+        const value   = isEmail ? PROFILE.email : PROFILE.phone;
+        const label   = isEmail ? "Email Address" : "Phone Number";
+        const icon    = isEmail ? I.mail : I.phone;
+        return (
+          <div onClick={() => { setContactModal(null); setCopied(false); }}
+            style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+              background: "rgba(0,0,0,.55)", backdropFilter: "blur(8px)", animation: "fadeIn .2s ease" }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: t.bgAlt, border: `1.5px solid ${t.accent}55`, borderRadius: 24, padding: "40px 36px",
+                boxShadow: `0 0 60px ${t.accent}25, 0 24px 64px rgba(0,0,0,.45)`,
+                minWidth: 340, maxWidth: 420, width: "90vw", textAlign: "center", position: "relative",
+                animation: "slideUp .25s cubic-bezier(.16,1,.3,1)" }}>
+              {/* close */}
+              <button onClick={() => { setContactModal(null); setCopied(false); }}
+                style={{ position: "absolute", top: 16, right: 16, background: t.glass, border: `1px solid ${t.gBorder}`,
+                  borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: t.muted,
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", lineHeight: 1 }}>×</button>
+              {/* icon badge */}
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: `linear-gradient(135deg,${t.accent}30,${t.accent2}30)`,
+                border: `1.5px solid ${t.accent}55`, display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 20px", color: t.accent, fontSize: "1.5rem" }}>{icon}</div>
+              <p style={{ fontSize: ".78rem", fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase",
+                color: t.faint, marginBottom: 10, fontFamily: "'Fira Code',monospace" }}>{label}</p>
+              {/* value box */}
+              <div style={{ background: t.glass, border: `1px solid ${t.gBorder}`, borderRadius: 14,
+                padding: "14px 20px", fontSize: "1.05rem", fontWeight: 600, color: t.text,
+                letterSpacing: ".02em", marginBottom: 24, wordBreak: "break-all" }}>{value}</div>
+              {/* buttons */}
+              <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                <button className="btn-p" onClick={() => copyToClipboard(value)}
+                  style={{ minWidth: 130, justifyContent: "center" }}>
+                  {copied ? "✓ Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={{ position: "relative", minHeight: "100vh" }}>
         <InteractiveBg dark={isDark} />
@@ -1141,12 +1192,19 @@ export default function Portfolio() {
                   <button className="btn-o" onClick={() => goTo("contact")}>Contact Me</button>
                 </div>
                 <div className="srow s5" style={{ display: "flex", gap: 16, marginTop: 40 }}>
-                  {[{ icon: I.gh, href: PROFILE.github, l: "GitHub" }, { icon: I.li, href: PROFILE.linkedin, l: "LinkedIn" }, { icon: I.mail, href: `mailto:${PROFILE.email}`, l: "Email" }, { icon: I.phone, href: `tel:${PROFILE.phone}`, l: "Phone" }].map(s => (
+                  {[{ icon: I.gh, href: PROFILE.github, l: "GitHub" }, { icon: I.li, href: PROFILE.linkedin, l: "LinkedIn" }].map(s => (
                     <a key={s.l} href={s.href} target="_blank" rel="noopener noreferrer" title={s.l}
                       style={{ width: 42, height: 42, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: t.glass, border: `1px solid ${t.gBorderS}`, color: t.muted, transition: "all .3s", textDecoration: "none" }}
                       onMouseEnter={e => { e.currentTarget.style.color = t.accent; e.currentTarget.style.borderColor = `${t.accent}66`; e.currentTarget.style.background = `${t.accent}15`; }}
                       onMouseLeave={e => { e.currentTarget.style.color = t.muted; e.currentTarget.style.borderColor = t.gBorderS; e.currentTarget.style.background = t.glass; }}
                     >{s.icon}</a>
+                  ))}
+                  {[{ icon: I.mail, l: "Email", modal: "email" }, { icon: I.phone, l: "Phone", modal: "phone" }].map(s => (
+                    <button key={s.l} title={s.l} onClick={() => { setCopied(false); setContactModal(s.modal); }}
+                      style={{ width: 42, height: 42, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: t.glass, border: `1px solid ${t.gBorderS}`, color: t.muted, transition: "all .3s", cursor: "pointer" }}
+                      onMouseEnter={e => { e.currentTarget.style.color = t.accent; e.currentTarget.style.borderColor = `${t.accent}66`; e.currentTarget.style.background = `${t.accent}15`; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = t.muted; e.currentTarget.style.borderColor = t.gBorderS; e.currentTarget.style.background = t.glass; }}
+                    >{s.icon}</button>
                   ))}
                 </div>
               </div>
@@ -1335,7 +1393,15 @@ export default function Portfolio() {
               <div>
                 <p style={{ fontSize: "1.05rem", lineHeight: 1.8, color: t.muted, marginBottom: 32 }}>I'm always open to discussing new projects, creative ideas, or opportunities to be part of something amazing. Feel free to reach out!</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                  {[{ icon: I.mail, l: "Email", v: PROFILE.email, h: `mailto:${PROFILE.email}` }, { icon: I.phone, l: "Phone", v: PROFILE.phone, h: `tel:${PROFILE.phone}` }, { icon: I.gh, l: "GitHub", v: "aroshwijesinghe", h: PROFILE.github }, { icon: I.li, l: "LinkedIn", v: "Arosh Wijesinghe", h: PROFILE.linkedin }].map(c => (
+                  {[{ icon: I.mail, l: "Email", v: PROFILE.email, modal: "email" }, { icon: I.phone, l: "Phone", v: PROFILE.phone, modal: "phone" }].map(c => (
+                    <button key={c.l} onClick={() => { setCopied(false); setContactModal(c.modal); }}
+                      style={{ display: "flex", alignItems: "center", gap: 16, background: "none", border: "none", cursor: "pointer", color: t.muted, transition: "color .3s", textAlign: "left", padding: 0, width: "100%" }}
+                      onMouseEnter={e => e.currentTarget.style.color = t.accent} onMouseLeave={e => e.currentTarget.style.color = t.muted}>
+                      <div style={{ width: 44, height: 44, borderRadius: 12, background: t.inputBg, border: `1px solid ${t.inputB}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{c.icon}</div>
+                      <div><div style={{ fontSize: ".78rem", color: t.faint, marginBottom: 2 }}>{c.l}</div><div style={{ fontSize: ".95rem" }}>{c.v}</div></div>
+                    </button>
+                  ))}
+                  {[{ icon: I.gh, l: "GitHub", v: "aroshwijesinghe", h: PROFILE.github }, { icon: I.li, l: "LinkedIn", v: "Arosh Wijesinghe", h: PROFILE.linkedin }].map(c => (
                     <a key={c.l} href={c.h} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 16, textDecoration: "none", color: t.muted, transition: "color .3s" }}
                       onMouseEnter={e => e.currentTarget.style.color = t.accent} onMouseLeave={e => e.currentTarget.style.color = t.muted}>
                       <div style={{ width: 44, height: 44, borderRadius: 12, background: t.inputBg, border: `1px solid ${t.inputB}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{c.icon}</div>
