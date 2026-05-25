@@ -677,7 +677,7 @@ function LoadingScreen({ accent, accent2 }) {
     }}>
       <div style={{
         fontSize: "4rem", fontWeight: 800,
-        fontFamily: "'JetBrains Mono', monospace",
+        fontFamily: "'Fira Code', monospace",
         background: `linear-gradient(135deg, ${accent}, ${accent2})`,
         WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
         backgroundClip: "text",
@@ -694,185 +694,258 @@ function InteractiveBg({ dark }) {
   useEffect(() => {
     const cv = ref.current; if (!cv) return;
     const ctx = cv.getContext("2d");
-    let id;
-    const mouse = { x: -9999, y: -9999, vx: 0, vy: 0, px: -9999, py: -9999 };
+    let id, t = 0;
+
+    // smoothed mouse position (lerped) + raw for velocity
+    const mouse  = { x: window.innerWidth / 2,  y: window.innerHeight / 2 };
+    const smooth = { x: window.innerWidth / 2,  y: window.innerHeight / 2 };
+    const vel    = { x: 0, y: 0 };
+    let   speed  = 0;
+    let   lastRipple = 0;
 
     const resize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
     resize();
     window.addEventListener("resize", resize);
 
     const onMouse = (e) => {
-      mouse.vx = e.clientX - mouse.px;
-      mouse.vy = e.clientY - mouse.py;
-      mouse.px = mouse.x; mouse.py = mouse.y;
-      mouse.x = e.clientX; mouse.y = e.clientY;
+      vel.x = e.clientX - mouse.x;
+      vel.y = e.clientY - mouse.y;
+      speed = Math.sqrt(vel.x ** 2 + vel.y ** 2);
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
     };
     window.addEventListener("mousemove", onMouse, { passive: true });
 
-    // colour palette — shifts with dark/light
-    const c1 = dark ? [0, 212, 255] : [0, 100, 200];
-    const c2 = dark ? [168, 85, 247] : [80, 0, 180];
-    const c3 = dark ? [0, 255, 136] : [0, 120, 80];
+    // palette helpers — hue shifts across screen width
+    const hue = (base, shift = 0) => `hsl(${base + shift},100%,${dark ? 60 : 45}%)`;
+    const getHueBase = () => (mouse.x / (cv.width || 1)) * 120; // 0=cyan, 60=green, 120=blue
 
-    // ── PARTICLES ──────────────────────────────────────────────
-    const N = 120;
-    const pts = Array.from({ length: N }, () => {
-      const pal = [c1, c2, c3][Math.floor(Math.random() * 3)];
-      return {
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        r: Math.random() * 2 + 0.8,
-        o: Math.random() * 0.5 + 0.15,
-        pal,
-        baseR: Math.random() * 2 + 0.8,
-      };
-    });
+    // ── PARTICLES ──────────────────────────────────────────────────────
+    const N = 140;
+    const pts = Array.from({ length: N }, () => ({
+      x:  Math.random() * window.innerWidth,
+      y:  Math.random() * window.innerHeight,
+      ox: 0, oy: 0,        // offset from rest position for oscillation
+      vx: (Math.random() - .5) * .35,
+      vy: (Math.random() - .5) * .35,
+      baseR: Math.random() * 1.8 + .6,
+      hOffset: Math.random() * 60 - 30,   // per-particle hue variation
+      phase: Math.random() * Math.PI * 2, // breathing phase
+      brightness: Math.random() * .4 + .25,
+    }));
 
-    // ── RIPPLES ─────────────────────────────────────────────────
+    // ── ORBS — large slowly drifting glowing blobs ──────────────────────
+    const ORBS = Array.from({ length: 5 }, (_, i) => ({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      vx: (Math.random() - .5) * .18,
+      vy: (Math.random() - .5) * .18,
+      r: 180 + Math.random() * 120,
+      hOffset: i * 55,   // spread hue
+      alpha: dark ? .045 : .035,
+      phase: Math.random() * Math.PI * 2,
+    }));
+
+    // ── RIPPLES ──────────────────────────────────────────────────────────
     const ripples = [];
-    const addRipple = (x, y) => {
-      ripples.push({ x, y, r: 0, maxR: 120 + Math.random() * 80, alpha: 0.35, speed: 2 + Math.random() * 2 });
+    const addRipple = (x, y, big = false) => {
+      const rings = big ? 3 : 2;
+      for (let k = 0; k < rings; k++) {
+        ripples.push({
+          x, y,
+          r: k * 18,
+          maxR: (big ? 260 : 160) + Math.random() * 60,
+          alpha: big ? .4 : .28,
+          speed: 2.8 + Math.random() * 1.6 - k * .3,
+          hOffset: getHueBase(),
+        });
+      }
     };
-    let lastRipple = 0;
 
-    // ── TRAILS ──────────────────────────────────────────────────
+    // ── COMET TRAIL ──────────────────────────────────────────────────────
     const trail = [];
-    const MAX_TRAIL = 28;
+    const MAX_TRAIL = 42;
 
     const loop = (now) => {
+      t += 0.012;
       const W = cv.width, H = cv.height;
+
+      // lerp smooth mouse
+      smooth.x += (mouse.x - smooth.x) * .07;
+      smooth.y += (mouse.y - smooth.y) * .07;
+
       ctx.clearRect(0, 0, W, H);
 
-      // mouse speed
-      const mspeed = Math.sqrt(mouse.vx ** 2 + mouse.vy ** 2);
+      const hb = getHueBase();
 
-      // spawn ripple on fast move
-      if (mspeed > 8 && now - lastRipple > 120) {
-        addRipple(mouse.x, mouse.y);
+      // ── 1. LARGE CURSOR BLOOM ─────────────────────────────────────────
+      if (mouse.x > 0) {
+        const bloom = ctx.createRadialGradient(smooth.x, smooth.y, 0, smooth.x, smooth.y, 340);
+        bloom.addColorStop(0,   `hsla(${hb},100%,70%,${dark ? .12 : .08})`);
+        bloom.addColorStop(0.4, `hsla(${hb+40},100%,60%,${dark ? .05 : .03})`);
+        bloom.addColorStop(1,   `hsla(${hb+80},100%,50%,0)`);
+        ctx.beginPath();
+        ctx.arc(smooth.x, smooth.y, 340, 0, Math.PI * 2);
+        ctx.fillStyle = bloom;
+        ctx.fill();
+
+        // tight inner core dot
+        const core = ctx.createRadialGradient(smooth.x, smooth.y, 0, smooth.x, smooth.y, 22);
+        core.addColorStop(0, `hsla(${hb},100%,90%,${dark ? .55 : .4})`);
+        core.addColorStop(1, `hsla(${hb},100%,70%,0)`);
+        ctx.beginPath();
+        ctx.arc(smooth.x, smooth.y, 22, 0, Math.PI * 2);
+        ctx.fillStyle = core;
+        ctx.fill();
+      }
+
+      // ── 2. RIPPLES ────────────────────────────────────────────────────
+      if (speed > 10 && now - lastRipple > 90) {
+        addRipple(mouse.x, mouse.y, speed > 22);
         lastRipple = now;
       }
-
-      // update trail
-      if (mouse.x > -999) {
-        trail.push({ x: mouse.x, y: mouse.y, t: now });
-        if (trail.length > MAX_TRAIL) trail.shift();
-      }
-
-      // ── draw ripples ──
       for (let i = ripples.length - 1; i >= 0; i--) {
         const rp = ripples[i];
-        rp.r += rp.speed;
-        rp.alpha -= 0.008;
+        rp.r     += rp.speed;
+        rp.alpha -= 0.007;
         if (rp.alpha <= 0 || rp.r > rp.maxR) { ripples.splice(i, 1); continue; }
         ctx.beginPath();
         ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${c1.join(',')},${rp.alpha})`;
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = `hsla(${rp.hOffset},100%,70%,${rp.alpha})`;
+        ctx.lineWidth = 1.4;
         ctx.stroke();
       }
 
-      // ── draw mouse trail ──
-      if (trail.length > 2) {
+      // ── 3. COMET TRAIL ────────────────────────────────────────────────
+      trail.push({ x: mouse.x, y: mouse.y, t: now, h: hb });
+      if (trail.length > MAX_TRAIL) trail.shift();
+
+      if (trail.length > 3) {
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
         for (let i = 1; i < trail.length; i++) {
           const p = trail[i - 1], q = trail[i];
           const frac = i / trail.length;
-          const age = (now - q.t) / 600;
-          const a = Math.max(0, (1 - age) * frac * 0.5);
-          const col = frac < 0.5 ? c1 : c2;
+          const age  = Math.max(0, 1 - (now - q.t) / 500);
+          const a    = age * frac * (dark ? .6 : .45);
+          if (a < .005) continue;
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(q.x, q.y);
-          ctx.strokeStyle = `rgba(${col.join(',')},${a})`;
-          ctx.lineWidth = (1 - frac) * 3 + 0.5;
+          ctx.strokeStyle = `hsla(${q.h + frac * 40},100%,72%,${a})`;
+          ctx.lineWidth   = frac * 3.5 + .3;
           ctx.stroke();
         }
-        // glowing head dot
-        if (trail.length > 0) {
-          const head = trail[trail.length - 1];
-          const g = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, 18);
-          g.addColorStop(0, `rgba(${c1.join(',')},0.5)`);
-          g.addColorStop(1, `rgba(${c1.join(',')},0)`);
-          ctx.beginPath();
-          ctx.arc(head.x, head.y, 18, 0, Math.PI * 2);
-          ctx.fillStyle = g;
-          ctx.fill();
-        }
+        ctx.restore();
       }
 
-      // ── update & draw particles ──
-      const ATTRACT_R = 180, REPEL_R = 90;
-      pts.forEach(p => {
-        const dx = mouse.x - p.x, dy = mouse.y - p.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+      // ── 4. DRIFTING GLOWING ORBS ──────────────────────────────────────
+      ORBS.forEach(orb => {
+        orb.x += orb.vx; orb.y += orb.vy;
+        if (orb.x < -orb.r)    orb.x = W + orb.r;
+        if (orb.x > W + orb.r) orb.x = -orb.r;
+        if (orb.y < -orb.r)    orb.y = H + orb.r;
+        if (orb.y > H + orb.r) orb.y = -orb.r;
 
-        if (dist < REPEL_R && dist > 0) {
-          // repel strongly near cursor
-          const force = (1 - dist / REPEL_R) * 0.04;
-          p.vx -= (dx / dist) * force;
-          p.vy -= (dy / dist) * force;
-        } else if (dist < ATTRACT_R && dist > 0) {
-          // gentle attraction in outer ring
-          const force = (1 - dist / ATTRACT_R) * 0.006;
-          p.vx += (dx / dist) * force;
-          p.vy += (dy / dist) * force;
+        // mouse pulls orbs gently
+        const dx = smooth.x - orb.x, dy = smooth.y - orb.y;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d < 500 && d > 0) {
+          orb.vx += (dx / d) * .0008;
+          orb.vy += (dy / d) * .0008;
         }
+        orb.vx *= .999; orb.vy *= .999;
 
-        // mouse velocity drag — particles get swept along
-        if (dist < ATTRACT_R) {
-          const sweep = Math.max(0, 1 - dist / ATTRACT_R) * 0.012;
-          p.vx += mouse.vx * sweep;
-          p.vy += mouse.vy * sweep;
-        }
-
-        p.vx *= 0.98; p.vy *= 0.98;
-        // clamp speed
-        const spd = Math.sqrt(p.vx ** 2 + p.vy ** 2);
-        if (spd > 3) { p.vx = (p.vx / spd) * 3; p.vy = (p.vy / spd) * 3; }
-
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0) { p.x = 0; p.vx *= -1; }
-        if (p.x > W) { p.x = W; p.vx *= -1; }
-        if (p.y < 0) { p.y = 0; p.vy *= -1; }
-        if (p.y > H) { p.y = H; p.vy *= -1; }
-
-        // glow up near mouse
-        const proximity = Math.max(0, 1 - dist / ATTRACT_R);
-        const r = p.baseR + proximity * 2.5;
-        const o = (dark ? 1 : 0.6) * (p.o + proximity * 0.4);
-
+        const breath = Math.sin(t * .6 + orb.phase) * .2 + 1;
+        const oh = (hb + orb.hOffset) % 360;
+        const g  = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.r * breath);
+        g.addColorStop(0, `hsla(${oh},100%,65%,${orb.alpha * 1.8})`);
+        g.addColorStop(.5,`hsla(${oh + 20},100%,55%,${orb.alpha})`);
+        g.addColorStop(1, `hsla(${oh + 40},100%,45%,0)`);
         ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${p.pal.join(',')},${Math.min(o, 0.9)})`;
+        ctx.arc(orb.x, orb.y, orb.r * breath, 0, Math.PI * 2);
+        ctx.fillStyle = g;
         ctx.fill();
       });
 
-      // ── draw connection lines ──
-      const LINK = 130;
+      // ── 5. PARTICLES ──────────────────────────────────────────────────
+      const REPEL = 110, ATTRACT = 220;
+      pts.forEach(p => {
+        const dx   = smooth.x - p.x, dy = smooth.y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < REPEL && dist > 0) {
+          const f = (1 - dist / REPEL) * .055;
+          p.vx -= (dx / dist) * f;
+          p.vy -= (dy / dist) * f;
+        } else if (dist < ATTRACT && dist > 0) {
+          const f = (1 - dist / ATTRACT) * .007;
+          p.vx += (dx / dist) * f;
+          p.vy += (dy / dist) * f;
+        }
+        // velocity sweep
+        if (dist < ATTRACT) {
+          const sw = (1 - dist / ATTRACT) * .014;
+          p.vx += vel.x * sw;
+          p.vy += vel.y * sw;
+        }
+
+        p.vx *= .975; p.vy *= .975;
+        const spd = Math.sqrt(p.vx ** 2 + p.vy ** 2);
+        if (spd > 4) { p.vx = (p.vx / spd) * 4; p.vy = (p.vy / spd) * 4; }
+
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) { p.x = 0; p.vx *= -.9; }
+        if (p.x > W) { p.x = W; p.vx *= -.9; }
+        if (p.y < 0) { p.y = 0; p.vy *= -.9; }
+        if (p.y > H) { p.y = H; p.vy *= -.9; }
+
+        const prox   = Math.max(0, 1 - dist / ATTRACT);
+        const breath = Math.sin(t * 1.2 + p.phase) * .3 + 1;
+        const r      = (p.baseR + prox * 3) * breath;
+        const alpha  = (dark ? 1 : .7) * (p.brightness + prox * .45);
+        const ph     = (hb + p.hOffset) % 360;
+
+        // glowing halo when near cursor
+        if (prox > .15) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r * 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${ph},100%,65%,${prox * .12})`;
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${ph},100%,72%,${Math.min(alpha, .95)})`;
+        ctx.fill();
+      });
+
+      // ── 6. CONNECTION WEB ─────────────────────────────────────────────
+      const LINK = 140;
       for (let i = 0; i < pts.length; i++) {
         for (let j = i + 1; j < pts.length; j++) {
           const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
-          const d = Math.sqrt(dx * dx + dy * dy);
-          if (d < LINK) {
-            // check if mouse is near the midpoint
-            const mx = (pts[i].x + pts[j].x) / 2, my = (pts[i].y + pts[j].y) / 2;
-            const mdist = Math.sqrt((mouse.x - mx) ** 2 + (mouse.y - my) ** 2);
-            const boost = Math.max(0, 1 - mdist / 300) * 0.25;
-            const base = 0.06 * (1 - d / LINK) * (dark ? 1 : 0.5);
-            ctx.beginPath();
-            ctx.moveTo(pts[i].x, pts[i].y);
-            ctx.lineTo(pts[j].x, pts[j].y);
-            ctx.strokeStyle = `rgba(${c1.join(',')},${base + boost})`;
-            ctx.lineWidth = 0.6;
-            ctx.stroke();
-          }
+          const d  = Math.sqrt(dx * dx + dy * dy);
+          if (d > LINK) continue;
+
+          const mx = (pts[i].x + pts[j].x) * .5;
+          const my = (pts[i].y + pts[j].y) * .5;
+          const md = Math.sqrt((smooth.x - mx) ** 2 + (smooth.y - my) ** 2);
+          const boost  = Math.max(0, 1 - md / 320) * .35;
+          const base   = (1 - d / LINK) * (dark ? .07 : .04);
+          const lh     = (hb + (pts[i].hOffset + pts[j].hOffset) / 2) % 360;
+
+          ctx.beginPath();
+          ctx.moveTo(pts[i].x, pts[i].y);
+          ctx.lineTo(pts[j].x, pts[j].y);
+          ctx.strokeStyle = `hsla(${lh},100%,70%,${base + boost})`;
+          ctx.lineWidth   = .55 + boost * 1.2;
+          ctx.stroke();
         }
       }
 
-      // mouse velocity reset each frame
-      mouse.vx *= 0.85; mouse.vy *= 0.85;
-
+      vel.x *= .8; vel.y *= .8;
       id = requestAnimationFrame(loop);
     };
     id = requestAnimationFrame(loop);
@@ -904,6 +977,13 @@ export default function Portfolio() {
   const navRef = useRef(null);
   const [isDark, setIsDark] = useState(true);
   const [loading, setLoading] = useState(true);
+
+  /* contact modal state */
+  const [contactModal, setContactModal] = useState(null); // "email" | "phone" | null
+  const [copied, setCopied] = useState(false);
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
 
   /* contact form state */
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
@@ -988,11 +1068,11 @@ export default function Portfolio() {
 
   return (
     <>
-      <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
       <style>{`
         *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
         html{scroll-behavior:smooth}
-        body{background:${t.bg};color:${t.text};font-family:'Outfit',sans-serif;overflow-x:hidden;transition:background .5s,color .5s}
+        body{background:${t.bg};color:${t.text};font-family:'DM Sans','Plus Jakarta Sans',sans-serif;overflow-x:hidden;transition:background .5s,color .5s}
         ::selection{background:${isDark?"rgba(0,212,255,.3)":"rgba(0,120,200,.2)"};color:${isDark?"#fff":"#000"}}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:${t.bg}}::-webkit-scrollbar-thumb{background:${t.accent}50;border-radius:3px}
         .gradient-text{background:linear-gradient(135deg,${t.accent} 0%,${t.accent2} 50%,${t.accent} 100%);background-size:200% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 4s ease infinite}
@@ -1000,17 +1080,17 @@ export default function Portfolio() {
         .cursor-blink::after{content:'|';animation:blink 1s step-end infinite;color:${t.accent};font-weight:300}
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
         .glow-border{position:relative}.glow-border::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(135deg,${t.accent}50,${t.accent2}50,${t.accent}20);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .4s;pointer-events:none}.glow-border:hover::before{opacity:1}
-        .btn-p{background:linear-gradient(135deg,${t.accent},${isDark?"#0099cc":"#005fa3"});color:${isDark?"#000":"#fff"};font-family:'Outfit',sans-serif;font-weight:600;padding:12px 28px;border:none;border-radius:50px;cursor:pointer;font-size:.95rem;transition:all .3s;display:inline-flex;align-items:center;gap:8px;text-decoration:none}.btn-p:hover{transform:translateY(-2px);box-shadow:0 8px 30px ${t.accent}40}
-        .btn-o{background:transparent;color:${t.accent};font-family:'Outfit',sans-serif;font-weight:500;padding:12px 28px;border:1px solid ${t.accent}66;border-radius:50px;cursor:pointer;font-size:.95rem;transition:all .3s;display:inline-flex;align-items:center;gap:8px;text-decoration:none}.btn-o:hover{background:${t.accent}18;border-color:${t.accent};transform:translateY(-2px)}
+        .btn-p{background:linear-gradient(135deg,${t.accent},${isDark?"#0099cc":"#005fa3"});color:${isDark?"#000":"#fff"};font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;padding:12px 28px;border:none;border-radius:50px;cursor:pointer;font-size:.95rem;transition:all .3s;display:inline-flex;align-items:center;gap:8px;text-decoration:none}.btn-p:hover{transform:translateY(-2px);box-shadow:0 8px 30px ${t.accent}40}
+        .btn-o{background:transparent;color:${t.accent};font-family:'Plus Jakarta Sans',sans-serif;font-weight:500;padding:12px 28px;border:1px solid ${t.accent}66;border-radius:50px;cursor:pointer;font-size:.95rem;transition:all .3s;display:inline-flex;align-items:center;gap:8px;text-decoration:none}.btn-o:hover{background:${t.accent}18;border-color:${t.accent};transform:translateY(-2px)}
         .pcard{transition:transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s}.pcard:hover{transform:translateY(-8px);box-shadow:0 20px 60px ${t.shadow}}
         .stag{transition:all .3s}.stag:hover{background:${t.accent}18 !important;border-color:${t.accent}55 !important;transform:translateY(-2px)}
-        .nl{position:relative;color:${t.muted};text-decoration:none;font-size:.9rem;font-weight:400;letter-spacing:.02em;transition:color .3s;cursor:pointer;background:none;border:none;font-family:'Outfit',sans-serif;padding:4px 0}.nl:hover,.nl.on{color:${t.text}}.nl.on::after{content:'';position:absolute;bottom:-2px;left:0;width:100%;height:2px;background:${t.accent};border-radius:1px}
-        input,textarea{width:100%;background:${t.inputBg};border:1px solid ${t.inputB};border-radius:12px;padding:14px 18px;color:${t.text};font-family:'Outfit',sans-serif;font-size:.95rem;transition:border-color .3s,box-shadow .3s;outline:none}input:focus,textarea:focus{border-color:${t.accent}80;box-shadow:0 0 20px ${t.accent}15}input::placeholder,textarea::placeholder{color:${t.faint}}textarea{resize:vertical;min-height:120px}
+        .nl{position:relative;color:${t.muted};text-decoration:none;font-size:.9rem;font-weight:400;letter-spacing:.02em;transition:color .3s;cursor:pointer;background:none;border:none;font-family:'Plus Jakarta Sans',sans-serif;padding:4px 0}.nl:hover,.nl.on{color:${t.text}}.nl.on::after{content:'';position:absolute;bottom:-2px;left:0;width:100%;height:2px;background:${t.accent};border-radius:1px}
+        input,textarea{width:100%;background:${t.inputBg};border:1px solid ${t.inputB};border-radius:12px;padding:14px 18px;color:${t.text};font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;transition:border-color .3s,box-shadow .3s;outline:none}input:focus,textarea:focus{border-color:${t.accent}80;box-shadow:0 0 20px ${t.accent}15}input::placeholder,textarea::placeholder{color:${t.faint}}textarea{resize:vertical;min-height:120px}
         .float-a{animation:float 6s ease-in-out infinite}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
         @keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}.s1{animation:fadeInUp .8s .1s both}.s2{animation:fadeInUp .8s .2s both}.s3{animation:fadeInUp .8s .3s both}.s4{animation:fadeInUp .8s .4s both}.s5{animation:fadeInUp .8s .5s both}
         .orb{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none}
         .thm{width:44px;height:44px;border-radius:50%;border:1px solid ${t.gBorderS};background:${t.glass};cursor:pointer;display:flex;align-items:center;justify-content:center;color:${t.text};transition:all .3s;backdrop-filter:blur(10px)}.thm:hover{background:${t.accent}18;border-color:${t.accent}55;transform:scale(1.1)}
-        .proj-link{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:50px;font-size:.82rem;font-weight:500;font-family:'JetBrains Mono',monospace;text-decoration:none;transition:all .3s;border:1px solid;cursor:pointer}
+        .proj-link{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:50px;font-size:.82rem;font-weight:500;font-family:'Fira Code',monospace;text-decoration:none;transition:all .3s;border:1px solid;cursor:pointer}
         @media(max-width:768px){.hero-grid{flex-direction:column-reverse !important;text-align:center}.hero-btns{justify-content:center !important}.pgrid{grid-template-columns:1fr !important}.sgrid{grid-template-columns:1fr !important}.agrid{grid-template-columns:1fr !important}.cgrid{grid-template-columns:1fr !important}.nav-d{display:none !important}.mob-btn{display:flex !important}.htitle{font-size:2.2rem !important}.stitle{font-size:2rem !important}.hero-img{width:220px !important;height:220px !important}.srow{justify-content:center !important}}
         @media(min-width:769px){.mob-btn{display:none !important}.mob-menu{display:none !important}}
       `}</style>
@@ -1026,7 +1106,7 @@ export default function Portfolio() {
         <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, padding: "14px 0", transition: "all .3s", background: scrollY > 50 ? t.navBg : "transparent", backdropFilter: scrollY > 50 ? "blur(20px)" : "none", borderBottom: scrollY > 50 ? `1px solid ${t.gBorder}` : "1px solid transparent" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <button onClick={() => goTo("home")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: `linear-gradient(135deg,${t.accent},${t.accent2})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".85rem", fontWeight: 700, color: "#fff", fontFamily: "'JetBrains Mono',monospace" }}>A</div>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: `linear-gradient(135deg,${t.accent},${t.accent2})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".85rem", fontWeight: 700, color: "#fff", fontFamily: "'Fira Code',monospace" }}>A</div>
               <span style={{ color: t.text, fontWeight: 600, fontSize: "1.05rem" }}>Arosh</span>
             </button>
             <div className="nav-d" style={{ display: "flex", gap: 32, alignItems: "center" }}>
@@ -1047,14 +1127,14 @@ export default function Portfolio() {
           <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%" }}>
             <div className="hero-grid" style={{ display: "flex", alignItems: "center", gap: 60 }}>
               <div style={{ flex: 1 }}>
-                <div className="s1" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: `${t.accent}12`, border: `1px solid ${t.accent}33`, borderRadius: 50, padding: "6px 16px", marginBottom: 24, fontSize: ".85rem", color: t.accent, fontFamily: "'JetBrains Mono',monospace" }}>
+                <div className="s1" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: `${t.accent}12`, border: `1px solid ${t.accent}33`, borderRadius: 50, padding: "6px 16px", marginBottom: 24, fontSize: ".85rem", color: t.accent, fontFamily: "'Fira Code',monospace" }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: t.accent, animation: "blink 2s infinite" }} /> Available for opportunities
                 </div>
                 <h1 className="htitle s2" style={{ fontSize: "3.2rem", fontWeight: 800, lineHeight: 1.1, marginBottom: 8, letterSpacing: "-.02em", display: "flex", alignItems: "baseline", gap: "0.35ch", flexWrap: "wrap" }}>
                   <SplitText text="Hi, I'm" tag="span" splitType="chars" delay={55} duration={0.65} ease="power3.out" from={{ opacity: 0, y: 40 }} to={{ opacity: 1, y: 0 }} threshold={0} rootMargin="0px" textAlign="left" />
                   <SplitText text="Arosh" tag="span" splitType="chars" delay={55} duration={0.65} ease="power3.out" from={{ opacity: 0, y: 40 }} to={{ opacity: 1, y: 0 }} threshold={0} rootMargin="0px" textAlign="left" />
                 </h1>
-                <div className="s3 cursor-blink" style={{ fontSize: "1.5rem", fontWeight: 300, color: t.muted, marginBottom: 24, fontFamily: "'JetBrains Mono',monospace", minHeight: "2.2rem" }}>{typed}</div>
+                <div className="s3 cursor-blink" style={{ fontSize: "1.5rem", fontWeight: 300, color: t.muted, marginBottom: 24, fontFamily: "'Fira Code',monospace", minHeight: "2.2rem" }}>{typed}</div>
                 <p className="s4" style={{ fontSize: "1.05rem", lineHeight: 1.7, color: t.faint, marginBottom: 32, maxWidth: 520 }}>{PROFILE.tagline}. Currently pursuing {PROFILE.degree} at {PROFILE.university}.</p>
                 <div className="hero-btns s5" style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                   <button className="btn-p" onClick={() => goTo("projects")}>View Projects {I.arr}</button>
@@ -1075,7 +1155,7 @@ export default function Portfolio() {
                   <div className="hero-img" style={{ width: 300, height: 300, borderRadius: "50%", background: `linear-gradient(135deg,${t.accent}40,${t.accent2}40)`, padding: 3 }}>
                     <div style={{ width: "100%", height: "100%", borderRadius: "50%", overflow: "hidden", background: t.bgAlt, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <img src="./profile.jpeg" alt={PROFILE.name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
-                        onError={e => { e.target.style.display = "none"; e.target.parentElement.innerHTML = `<div style="font-size:72px;font-weight:800;font-family:'Outfit';color:${t.accent}">AW</div>`; }} />
+                        onError={e => { e.target.style.display = "none"; e.target.parentElement.innerHTML = `<div style="font-size:72px;font-weight:800;font-family:'Plus Jakarta Sans';color:${t.accent}">AW</div>`; }} />
                     </div>
                   </div>
                   <div style={{ position: "absolute", inset: -15, borderRadius: "50%", border: `1px solid ${t.accent}25`, animation: "float 4s ease-in-out infinite reverse" }} />
@@ -1098,7 +1178,7 @@ export default function Portfolio() {
                 <div style={{ background: `linear-gradient(135deg,${t.accent}08,${t.accent2}08)`, border: `1px solid ${t.accent}25`, borderRadius: 16, padding: 24, marginBottom: 28 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                     <span style={{ color: t.accent }}>{I.target}</span>
-                    <span style={{ fontSize: ".82rem", fontWeight: 600, color: t.accent, letterSpacing: ".1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono',monospace" }}>Career Goal</span>
+                    <span style={{ fontSize: ".82rem", fontWeight: 600, color: t.accent, letterSpacing: ".1em", textTransform: "uppercase", fontFamily: "'Fira Code',monospace" }}>Career Goal</span>
                   </div>
                   <p style={{ fontSize: ".98rem", lineHeight: 1.7, color: t.muted }}>{PROFILE.careerGoal}</p>
                 </div>
@@ -1110,7 +1190,7 @@ export default function Portfolio() {
                     onMouseEnter={e => { e.currentTarget.style.borderColor = s.c; e.currentTarget.style.boxShadow = `0 0 25px ${s.c}40, inset 0 0 15px ${s.c}15`; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = t.gBorder; e.currentTarget.style.boxShadow = "none"; }}>
                     <div style={{ fontSize: "1.4rem", marginBottom: 4 }}>{s.e}</div>
-                    <div style={{ fontSize: "1.5rem", fontWeight: 700, color: t.accent, fontFamily: "'JetBrains Mono',monospace" }}>{s.v}</div>
+                    <div style={{ fontSize: "1.5rem", fontWeight: 700, color: t.accent, fontFamily: "'Fira Code',monospace" }}>{s.v}</div>
                     <div style={{ fontSize: ".85rem", color: t.faint, marginTop: 4 }}>{s.l}</div>
                   </div>
                 ))}
@@ -1137,7 +1217,7 @@ export default function Portfolio() {
                 <div key={g.category} className="glow-border" style={{ background: darkBg, border: `1px solid ${t.gBorder}`, backdropFilter: "blur(20px)", borderRadius: 20, padding: 28, position: "relative", transition: "all .3s", cursor: "pointer" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = hoverBorder; e.currentTarget.style.boxShadow = `0 0 20px ${color}40`; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = t.gBorder; e.currentTarget.style.boxShadow = "none"; }}>
-                  <h3 style={{ fontSize: ".8rem", fontWeight: 500, color: t.accent, letterSpacing: ".15em", textTransform: "uppercase", marginBottom: 16, fontFamily: "'JetBrains Mono',monospace" }}>{g.category}</h3>
+                  <h3 style={{ fontSize: ".8rem", fontWeight: 500, color: t.accent, letterSpacing: ".15em", textTransform: "uppercase", marginBottom: 16, fontFamily: "'Fira Code',monospace" }}>{g.category}</h3>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     {g.items.map(sk => (
                       <span key={sk.name} className="stag" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 50, fontSize: ".88rem", background: t.inputBg, border: `1px solid ${t.inputB}`, color: t.muted, cursor: "default" }}>
@@ -1167,7 +1247,7 @@ export default function Portfolio() {
 
                   <div style={{ padding: 32 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                      <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, background: `${p.color}15`, border: `1px solid ${p.color}30`, color: p.color, fontSize: ".85rem", fontWeight: 600, fontFamily: "'JetBrains Mono',monospace" }}>0{i + 1}</div>
+                      <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, background: `${p.color}15`, border: `1px solid ${p.color}30`, color: p.color, fontSize: ".85rem", fontWeight: 600, fontFamily: "'Fira Code',monospace" }}>0{i + 1}</div>
                       <div style={{ display: "flex", gap: 8 }}>
                         {p.link && (
                           <a
@@ -1196,14 +1276,14 @@ export default function Portfolio() {
                           </a>
                         )}
                         {!p.link && !p.demoLink && (
-                          <span style={{ fontSize: ".78rem", color: t.faint, fontFamily: "'JetBrains Mono',monospace", padding: "8px 0" }}>Private</span>
+                          <span style={{ fontSize: ".78rem", color: t.faint, fontFamily: "'Fira Code',monospace", padding: "8px 0" }}>Private</span>
                         )}
                       </div>
                     </div>
                     <h3 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: 12 }}>{p.title}</h3>
                     <p style={{ fontSize: ".92rem", lineHeight: 1.7, color: t.faint, marginBottom: 20 }}>{p.desc}</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {p.tech.map(tc => <span key={tc} style={{ padding: "4px 12px", borderRadius: 50, fontSize: ".78rem", background: `${p.color}10`, border: `1px solid ${p.color}25`, color: p.color, fontFamily: "'JetBrains Mono',monospace" }}>{tc}</span>)}
+                      {p.tech.map(tc => <span key={tc} style={{ padding: "4px 12px", borderRadius: 50, fontSize: ".78rem", background: `${p.color}10`, border: `1px solid ${p.color}25`, color: p.color, fontFamily: "'Fira Code',monospace" }}>{tc}</span>)}
                     </div>
                   </div>
                 </div>
@@ -1226,13 +1306,13 @@ export default function Portfolio() {
                 const color = timelineColors[i % timelineColors.length];
                 return (
                 <div key={i} style={{ display: "flex", gap: 32, marginBottom: 40, position: "relative" }}>
-                  <div style={{ width: 42, height: 42, borderRadius: "50%", flexShrink: 0, background: item.active ? `linear-gradient(135deg,${t.accent},${t.accent2})` : t.glass, border: item.active ? "none" : `2px solid ${t.gBorderS}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".7rem", fontWeight: 600, color: item.active ? "#fff" : t.faint, fontFamily: "'JetBrains Mono',monospace", zIndex: 1 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: "50%", flexShrink: 0, background: item.active ? `linear-gradient(135deg,${t.accent},${t.accent2})` : t.glass, border: item.active ? "none" : `2px solid ${t.gBorderS}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".7rem", fontWeight: 600, color: item.active ? "#fff" : t.faint, fontFamily: "'Fira Code',monospace", zIndex: 1 }}>
                     {item.active ? "NOW" : `'${item.year.slice(-2)}`}
                   </div>
                   <div style={{ background: t.bgAlt, border: `2px solid ${t.gBorder}`, borderLeft: `4px solid ${color}`, backdropFilter: "blur(20px)", borderRadius: 16, padding: 24, flex: 1, transition: "all .3s", cursor: "pointer" }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.borderLeftColor = color; e.currentTarget.style.boxShadow = `0 0 25px ${color}40, inset 0 0 15px ${color}15`; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = t.gBorder; e.currentTarget.style.borderLeftColor = color; e.currentTarget.style.boxShadow = "none"; }}>
-                    <div style={{ fontSize: ".78rem", color: t.accent, marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>{item.year}</div>
+                    <div style={{ fontSize: ".78rem", color: t.accent, marginBottom: 6, fontFamily: "'Fira Code',monospace" }}>{item.year}</div>
                     <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 4 }}>{item.title}</h3>
                     <div style={{ fontSize: ".88rem", color: t.faint, marginBottom: 8 }}>{item.place}</div>
                     <p style={{ fontSize: ".9rem", lineHeight: 1.65, color: t.muted }}>{item.desc}</p>
