@@ -1163,6 +1163,13 @@ export default function Portfolio() {
                     {I.mail} Open in Mail
                   </button>
                 )}
+                {!isEmail && (
+                  <button className="btn-o"
+                    style={{ minWidth: 130, justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 6 }}
+                    onClick={e => { e.stopPropagation(); window.location.href = `tel:${value.replace(/\s/g, "")}`; }}>
+                    {I.phone} Call Now
+                  </button>
+                )}
               </div>
             </div>
           </div>
