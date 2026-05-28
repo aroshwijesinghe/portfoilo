@@ -128,7 +128,7 @@ const PROJECTS = [
     desc: "This very website — a modern, responsive portfolio built with React featuring glassmorphism, smooth animations, dark/light mode, and futuristic aesthetics.",
     tech: ["React", "Tailwind", "Framer Motion"],
     color: "#f59e0b",
-    link: null,
+    link: "https://github.com/aroshwijesinghe/portfoilo",
     demoLink: null,
   },
   {
