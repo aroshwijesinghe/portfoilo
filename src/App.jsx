@@ -1151,11 +1151,18 @@ export default function Portfolio() {
                 padding: "14px 20px", fontSize: "1.05rem", fontWeight: 600, color: t.text,
                 letterSpacing: ".02em", marginBottom: 24, wordBreak: "break-all" }}>{value}</div>
               {/* buttons */}
-              <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                 <button className="btn-p" onClick={() => copyToClipboard(value)}
                   style={{ minWidth: 130, justifyContent: "center" }}>
                   {copied ? "✓ Copied!" : "Copy"}
                 </button>
+                {isEmail && (
+                  <button className="btn-o"
+                    style={{ minWidth: 130, justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 6 }}
+                    onClick={e => { e.stopPropagation(); window.location.href = `mailto:${value}`; }}>
+                    {I.mail} Open in Mail
+                  </button>
+                )}
               </div>
             </div>
           </div>
